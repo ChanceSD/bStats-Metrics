@@ -31,6 +31,7 @@ public class MetricsBase {
 
     private static final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
+    private static ScheduledFuture<?> scheduledTask;
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
 
     private final String platform;
@@ -124,7 +125,10 @@ public class MetricsBase {
                 this.submitData();
             }
         };
-
+		// Cancel previous task if there is one
+        if (scheduledTask != null) {
+            scheduledTask.cancel(true);
+        }
         // Many servers tend to restart at a fixed time at xx:00 which causes an uneven distribution of requests on the
         // bStats backend. To circumvent this problem, we introduce some randomness into the initial and second delay.
         // WARNING: You must not modify and part of this Metrics class, including the submit delay or frequency!
@@ -132,7 +136,7 @@ public class MetricsBase {
         long initialDelay = (long) (1000 * 60 * (3 + Math.random() * 3));
         long secondDelay = (long) (1000 * 60 * (Math.random() * 30));
         scheduler.schedule(submitTask, initialDelay, TimeUnit.MILLISECONDS);
-        scheduler.scheduleAtFixedRate(submitTask, initialDelay + secondDelay, 1000 * 60 * 30, TimeUnit.MILLISECONDS);
+        scheduledTask = scheduler.scheduleAtFixedRate(submitTask, initialDelay + secondDelay, 1000 * 60 * 30, TimeUnit.MILLISECONDS);
     }
 
     private void submitData() {
